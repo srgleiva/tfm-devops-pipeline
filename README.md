@@ -27,7 +27,9 @@ Todo lo relativo al pipeline (pruebas, workflows de GitHub Actions, infraestruct
 
 ```
 api/         API de .NET (endpoints en api/Extensions/TodoEndpoints.cs)
-frontend/    Interfaz en React
+frontend/    Interfaz en React (pruebas de Vitest en src/, pruebas E2E en e2e/)
+tests/       Pruebas unitarias e de integración de la API (xUnit)
+.github/     Workflows de GitHub Actions (CI, CodeQL) y Dependabot
 Dockerfile   Imagen de producción (API + frontend compilado)
 docker-compose.yml
 ```
@@ -58,6 +60,15 @@ cd ../frontend
 npm install
 npm run dev                       # interfaz en http://localhost:5173
 ```
+
+## Pruebas
+
+| Tipo | Herramienta | Comando |
+|---|---|---|
+| Unitarias (API) | xUnit | `dotnet test tests/Api.UnitTests` |
+| Integración (API + PostgreSQL) | xUnit, WebApplicationFactory, Testcontainers | `dotnet test tests/Api.IntegrationTests` (requiere Docker) |
+| Unitarias y de componentes (frontend) | Vitest, Testing Library | `cd frontend && npm test` |
+| Extremo a extremo | Playwright | `docker compose up -d` y `cd frontend && npm run test:e2e` |
 
 ## API
 

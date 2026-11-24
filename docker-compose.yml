@@ -21,7 +21,7 @@ services:
   app:
     build: .
     environment:
-      ConnectionStrings__db: "Host=db;Port=5432;Database=tfm;Username=tfm;Password=tfm"
+      ConnectionStrings__db: "Host=db;Port=5432;Database=tfm;Username=tfm;Password=tfm;Gss Encryption Mode=Disable"
     ports:
       - "8080:8080"
     depends_on:

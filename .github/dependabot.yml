@@ -1,0 +1,31 @@
+# Actualización automática de dependencias: abre un pull request por grupo cada semana.
+version: 2
+updates:
+  - package-ecosystem: nuget
+    directories:
+      - /api
+      - /tests/Api.UnitTests
+      - /tests/Api.IntegrationTests
+    schedule:
+      interval: weekly
+    groups:
+      nuget:
+        update-types: [minor, patch]
+
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+    groups:
+      npm:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly

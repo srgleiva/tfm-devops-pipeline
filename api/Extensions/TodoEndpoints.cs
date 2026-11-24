@@ -1,14 +1,12 @@
 using Microsoft.EntityFrameworkCore;
 using Api.Data;
 using Api.Models;
+using Api.Validation;
 
 namespace Api.Extensions;
 
 public static class TodoEndpoints
 {
-    private const int DefaultTodoLimit = 50;
-    private const int MaxTodoLimit = 100;
-
     public static WebApplication MapTodos(this WebApplication app)
     {
         var group = app.MapGroup("/api");
@@ -16,17 +14,11 @@ public static class TodoEndpoints
         // Get todos
         group.MapGet("/todos", async (int? offset, int? limit, TodoDbContext db) =>
         {
-            var normalizedOffset = offset ?? 0;
-            var normalizedLimit = limit ?? DefaultTodoLimit;
-
-            if (normalizedOffset < 0)
+            var paginationError = TodoValidation.ValidatePagination(
+                offset, limit, out var normalizedOffset, out var normalizedLimit);
+            if (paginationError is { } error)
             {
-                return ValidationProblem("offset", "Offset must be greater than or equal to 0.");
-            }
-
-            if (normalizedLimit is < 1 or > MaxTodoLimit)
-            {
-                return ValidationProblem("limit", $"Limit must be between 1 and {MaxTodoLimit}.");
+                return ValidationProblem(error.Field, error.Message);
             }
 
             var todos = await db.Todos
@@ -115,19 +107,8 @@ public static class TodoEndpoints
 
     private static IResult? ValidateTitle(string? title, out string normalizedTitle)
     {
-        normalizedTitle = title?.Trim() ?? string.Empty;
-
-        if (normalizedTitle.Length == 0)
-        {
-            return ValidationProblem("title", "Title is required.");
-        }
-
-        if (normalizedTitle.Length > Todo.MaxTitleLength)
-        {
-            return ValidationProblem("title", $"Title must be {Todo.MaxTitleLength} characters or fewer.");
-        }
-
-        return null;
+        var error = TodoValidation.ValidateTitle(title, out normalizedTitle);
+        return error is null ? null : ValidationProblem("title", error);
     }
 
     private static IResult ValidationProblem(string key, string message)

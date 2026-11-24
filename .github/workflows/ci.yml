@@ -1,0 +1,164 @@
+# Integración continua: se ejecuta en cada push a main y en cada pull request.
+# Etapas: formato y compilación -> pruebas unitarias -> pruebas de integración -> pruebas E2E.
+# Los resultados de todas las pruebas se guardan en formato JUnit para el dashboard (OE3).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_VERSION: '10.0.x'
+  NODE_VERSION: '24'
+
+jobs:
+  backend:
+    name: Backend (.NET)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restaurar dependencias
+        run: dotnet restore TfmApp.slnx
+
+      - name: Comprobar formato (dotnet format)
+        run: dotnet format TfmApp.slnx --verify-no-changes --no-restore
+
+      - name: Compilar
+        run: dotnet build TfmApp.slnx -c Release --no-restore
+
+      - name: Pruebas unitarias (xUnit)
+        run: >
+          dotnet test tests/Api.UnitTests -c Release --no-build
+          --logger "junit;LogFilePath=${{ github.workspace }}/reports/backend-unit-junit.xml"
+          --collect:"XPlat Code Coverage" --results-directory reports/coverage-unit
+
+      - name: Pruebas de integración (xUnit + Testcontainers + PostgreSQL)
+        run: >
+          dotnet test tests/Api.IntegrationTests -c Release --no-build
+          --logger "junit;LogFilePath=${{ github.workspace }}/reports/backend-integration-junit.xml"
+          --collect:"XPlat Code Coverage" --results-directory reports/coverage-integration
+
+      - name: Guardar resultados
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-results
+          path: reports/
+
+  frontend:
+    name: Frontend (React)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Comprobar tipos y compilar
+        run: npm run build
+
+      - name: Pruebas unitarias y de componentes (Vitest)
+        run: npm run test:coverage
+
+      - name: Guardar resultados
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-test-results
+          path: frontend/reports/
+
+  e2e:
+    name: Pruebas E2E (Playwright)
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Levantar la aplicación con Docker Compose
+        run: docker compose up --build -d
+
+      - name: Esperar a que la aplicación esté lista
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fs http://localhost:8080/health/ready; then echo; exit 0; fi
+            sleep 2
+          done
+          docker compose logs
+          exit 1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Instalar dependencias y navegador
+        working-directory: frontend
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Ejecutar pruebas E2E
+        working-directory: frontend
+        env:
+          BASE_URL: http://localhost:8080
+        run: npm run test:e2e
+
+      - name: Registros de la aplicación
+        if: failure()
+        run: docker compose logs
+
+      - name: Guardar resultados
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-test-results
+          path: frontend/reports/
+
+      - name: Parar la aplicación
+        if: always()
+        run: docker compose down -v
+
+  report:
+    name: Informe de pruebas
+    needs: [backend, frontend, e2e]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: results
+
+      - name: Publicar resumen de pruebas
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        with:
+          files: results/**/*junit*.xml
+          check_name: Resultados de las pruebas
