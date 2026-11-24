@@ -9,7 +9,7 @@ COPY frontend/ ./
 RUN npm run build
 
 # 2) Compilación y publicación de la API (.NET 10)
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:11.0 AS build
 WORKDIR /src
 COPY api/Api.csproj api/
 RUN dotnet restore api/Api.csproj
