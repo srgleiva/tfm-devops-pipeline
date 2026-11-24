@@ -17,7 +17,7 @@ COPY api/ api/
 RUN dotnet publish api/Api.csproj -c Release -o /app --no-restore
 
 # 3) Imagen final, solo con el entorno de ejecución
-FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
+FROM mcr.microsoft.com/dotnet/aspnet:11.0 AS final
 WORKDIR /app
 COPY --from=build /app ./
 COPY --from=frontend /src/frontend/dist ./wwwroot
