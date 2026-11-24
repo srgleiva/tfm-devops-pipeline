@@ -1,7 +1,7 @@
 # Imagen única: la API de .NET sirve también el frontend compilado (carpeta wwwroot).
 
 # 1) Compilación del frontend (React + Vite)
-FROM node:24-alpine AS frontend
+FROM node:26-alpine AS frontend
 WORKDIR /src/frontend
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
