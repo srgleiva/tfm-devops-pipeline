@@ -1,4 +1,5 @@
-# Actualización automática de dependencias: abre un pull request por grupo cada semana.
+# Actualización automática de dependencias: como máximo un pull request por ecosistema cada semana
+# (todas las actualizaciones de cada ecosistema van agrupadas en el mismo PR).
 version: 2
 updates:
   - package-ecosystem: nuget
@@ -10,7 +11,13 @@ updates:
       interval: weekly
     groups:
       nuget:
-        update-types: [minor, patch]
+        patterns: ["*"]
+    # El proyecto se mantiene en .NET 10 (LTS): no proponer saltos a .NET 11 o posteriores.
+    ignore:
+      - dependency-name: "Microsoft.*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "Npgsql.*"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: npm
     directory: /frontend
@@ -18,14 +25,23 @@ updates:
       interval: weekly
     groups:
       npm:
-        update-types: [minor, patch]
+        patterns: ["*"]
 
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+    groups:
+      github-actions:
+        patterns: ["*"]
 
   - package-ecosystem: docker
     directory: /
     schedule:
       interval: weekly
+    groups:
+      docker:
+        patterns: ["*"]
+    ignore:
+      - dependency-name: "dotnet/*"
+        update-types: ["version-update:semver-major"]
