@@ -1,5 +1,5 @@
 # Integración continua: se ejecuta en cada push a main y en cada pull request.
-# Etapas: formato y compilación -> pruebas unitarias -> pruebas de integración -> pruebas E2E.
+# Etapas: análisis estático (dotnet format, ESLint) y compilación -> pruebas unitarias -> pruebas de integración -> pruebas E2E.
 # Los resultados de todas las pruebas se guardan en formato JUnit para el dashboard (OE3).
 name: CI
 
@@ -81,6 +81,9 @@ jobs:
 
       - name: Instalar dependencias
         run: npm ci
+
+      - name: Análisis estático (ESLint)
+        run: npm run lint
 
       - name: Comprobar tipos y compilar
         run: npm run build
